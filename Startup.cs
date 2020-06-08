@@ -32,13 +32,19 @@ namespace Chatty
                 options.UseMySql(
                     Configuration.GetConnectionString("DefaultConnection")));
             services.AddDefaultIdentity<User>(options => options.SignIn.RequireConfirmedAccount = true)
+                .AddRoles<IdentityRole<int>>()
                 .AddEntityFrameworkStores<ChattyDbContext>();
             services.AddControllersWithViews();
-           services.AddRazorPages();
+            services.AddRazorPages();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public void Configure(
+            IApplicationBuilder app, 
+            IWebHostEnvironment env,
+            UserManager<User> userManager,
+            RoleManager<IdentityRole<int>> roleManager
+        )
         {
             if (env.IsDevelopment())
             {
@@ -58,6 +64,9 @@ namespace Chatty
 
             app.UseAuthentication();
             app.UseAuthorization();
+
+            //RoleManager<IdentityRole> roleManager = null;
+            InitialAccountDataSeeder.SeedData(userManager, roleManager);
 
             app.UseEndpoints(endpoints =>
             {

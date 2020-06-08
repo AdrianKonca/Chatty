@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Chatty.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Chatty.Controllers
 {
@@ -22,7 +23,7 @@ namespace Chatty.Controllers
         {
             return View();
         }
-
+        [Authorize(Roles = "Admin")]
         public IActionResult Privacy()
         {
             return View();
