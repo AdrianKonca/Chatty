@@ -12,6 +12,7 @@ using Chatty.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Chatty.Models;
 
 namespace Chatty
 {
@@ -30,7 +31,7 @@ namespace Chatty
             services.AddDbContext<ChattyDbContext>(options =>
                 options.UseMySql(
                     Configuration.GetConnectionString("DefaultConnection")));
-            services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
+            services.AddDefaultIdentity<User>(options => options.SignIn.RequireConfirmedAccount = true)
                 .AddEntityFrameworkStores<ChattyDbContext>();
             services.AddControllersWithViews();
            services.AddRazorPages();
