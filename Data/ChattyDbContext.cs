@@ -29,6 +29,11 @@ namespace Chatty.Data
                 .HasOne(m => m.Receiver)
                 .WithMany(r => r.ReceivedMessages);
 
+            modelBuilder.Entity<Message>()
+                .Property(m => m.SentOn)
+                .HasDefaultValueSql("Now()")
+                .HasColumnType("DATETIME");
+
             modelBuilder.Entity<GroupMember>()
                 .HasKey(gm => new { gm.UserId, gm.GroupId });  
             modelBuilder.Entity<GroupMember>()
