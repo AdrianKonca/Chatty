@@ -1,0 +1,405 @@
+﻿@{
+    ViewData["Title"] = "Chat";
+}
+<button type="button" onclick="generateKey()">GENERATE NEW KEY PAIR</button>
+
+<div class="container">
+    <!--h3 class=" text-center">Messaging</h3-->
+    <div class="messaging">
+        <div class="inbox_msg">
+            <div class="inbox_people">
+                <div class="headind_srch">
+                    <div class="recent_heading">
+                        <h4>Recent</h4>
+                    </div>
+                    <!--div class="srch_bar">
+                        <div class="stylish-input-group">
+                            <input type="text" class="search-bar" placeholder="Search">
+                            <span class="input-group-addon">
+                                <button type="button"> <i class="fa fa-search" aria-hidden="true"></i> </button>
+                            </span> </div>
+                    </div-->
+                </div>
+                <div class="inbox_chat">
+                    <!--div class="chat_list active_chat">
+                        <div class="chat_people">
+                            <div class="chat_img"> <img src="https://ptetutorials.com/images/user-profile.png" alt="sunil"> </div>
+                            <div class="chat_ib">
+                                <h5>Sunil Rajput <span class="chat_date">Dec 25</span></h5>
+                                <p>Test, which is a new approach to have all solutions
+                                    astrology under one roof.</p>
+                            </div>
+                        </div>
+                    </div-->
+                </div>
+            </div>
+            <div class="mesgs">
+                <div class="msg_history">
+                    <!--div class="incoming_msg">
+                        <div class="incoming_msg_img"> <img src="https://ptetutorials.com/images/user-profile.png"
+                                alt="sunil"> </div>
+                        <div class="received_msg">
+                            <div class="received_withd_msg">
+                                <p>Test which is a new approach to have all
+                                    solutions</p>
+                                <span class="time_date"> 11:01 AM | June 9</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="outgoing_msg">
+                        <div class="sent_msg">
+                            <p>Test which is a new approach to have all
+                                solutions</p>
+                            <span class="time_date"> 11:01 AM | June 9</span>
+                        </div>
+                    </div-->
+                </div>
+                <div class="type_msg">
+                    <div class="input_msg_write">
+                        <input type="text" class="write_msg" placeholder="Type a message" />
+                        <button class="msg_send_btn" type="button" onclick="sendMessage()"><i class="fa fa-paper-plane-o"
+                                aria-hidden="true"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <p class="text-center top_spac"> Design by <a target="_blank" href="#">Sunil Rajput</a></p>
+
+    </div>
+</div>
+
+<template id="contact">
+    <div class="chat_list">
+        <div class="chat_people">
+            <div class="chat_img"> <img src="https://ptetutorials.com/images/user-profile.png"
+                    alt="sunil"> </div>
+            <div class="chat_ib">
+                <h5>NAME<span class="chat_date">LAST_MESSAGE_DATE</span></h5>
+                <p>MESSAGE</p>
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="incoming">
+    <div class="incoming_msg">
+        <div class="incoming_msg_img"> <img src="https://ptetutorials.com/images/user-profile.png"
+                alt="sunil"> </div>
+        <div class="received_msg">
+            <div class="received_withd_msg">
+                <p>MESSAGE</p>
+                <span class="time_date">DATE</span>
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="outgoing">
+    <div class="outgoing_msg">
+        <div class="sent_msg">
+            <p>MESSAGE</p>
+            <span class="time_date">DATE</span>
+        </div>
+    </div>
+</template>
+
+
+@section Scripts  
+{  
+    <script type="text/javascript">
+
+    var currentContact = null;
+    var sharedSecret = null;
+
+    async function updateMessages(data)
+    {
+        var sentMessageTemplate = document.querySelector('#outgoing')
+        var receivedMessageTemplate = document.querySelector('#incoming')
+    
+        var messageWindow = document.getElementsByClassName("msg_history")[0]
+        messageWindow.innerHTML = null
+        const messages = data.messages
+        const publicKeyBase64 = data.publicKey
+
+        const privateKey = await decryptPrivateKey()
+        const publicKey = await decryptPublicKey(publicKeyBase64)
+        sharedSecret = await deriveSharedSecret(privateKey, publicKey)
+        messages.forEach(async (message, index) => {
+            var clone = null;
+            if (message.type == 'sent')
+            {
+                clone = sentMessageTemplate.content.cloneNode(true)
+            }
+            else
+            {
+                clone = receivedMessageTemplate.content.cloneNode(true)
+            }
+            
+            var messageTag = clone.children[0].getElementsByTagName('p')[0]
+            var dateTag = clone.children[0].getElementsByTagName('span')[0]
+
+            //If we can't the message that means that keys changed on either side.
+            try {
+                messageTag.innerText = await decryptMessage(message.content)
+            } catch (error) {
+                messageTag.innerText = "[HIDDEN]"
+            }
+
+            
+            var date = new Date(message.sentOn)
+            dateTag.innerText = date
+
+            messageWindow.appendChild(clone)
+        })
+
+        console.log(messages)
+    }
+    function errorFunc(xhr, ajaxOptions, thrownError)
+    {
+        var errorMsg = 'Ajax request failed: ' + xhr.responseText;
+        alert(errorMsg)
+    }
+
+    function requestMessageUpdate()
+    {
+        $.ajax({ 
+            type: "POST",
+            url: '@Url.Action("GetMessages")',
+            data: JSON.stringify({UserName: currentContact, Type: "User"}),
+            dataType: 'json',
+            contentType: "application/json; charset=utf-8",
+            success: updateMessages,
+            error: errorFunc
+        });
+
+    }
+    function selectUser(event)
+    {
+        var user = event.target.closest('.chat_list')
+        currentContact = user.id
+        requestMessageUpdate(currentContact)
+    }
+
+    async function sendMessage()
+    {
+        var messageBox = document.getElementsByClassName("write_msg")[0]
+        var content = messageBox.value
+        
+        if (!currentContact) {
+            alert("Can't send message without selecting the receiver first")
+            return
+        }
+        if (!content) {
+            alert("Can't send an empty message")
+            return
+        }
+
+        content = await encryptMessage(content)
+        $.ajax({ 
+            type: "POST",
+            url: '@Url.Action("SendMessage")',
+            data: JSON.stringify({Content: content, Receiver: currentContact, Type: "User"}),
+            dataType: 'json',
+            contentType: "application/json; charset=utf-8",
+            success: () => {messageBox.value = null; requestMessageUpdate(currentContact);},
+            error: errorFunc
+        });
+
+    }
+    function insertContacts(data)
+    {
+        var userTemplate = document.querySelector('#contact')
+        var userList = document.getElementsByClassName("inbox_chat")[0]
+        userList.innerHTML = null
+
+        data.forEach((item, index) => {
+            var clone = userTemplate.content.cloneNode(true)
+            var lastMessage = clone.children[0].getElementsByTagName('p')[0]
+            var username = clone.children[0].getElementsByTagName('h5')[0]
+            var date = clone.children[0].getElementsByClassName("chat_date")[0]
+
+            date.innerText = 'TODO'
+            lastMessage.innerText = 'TODO last message'
+            username.innerText = item.Name
+            clone.children[0].id = item.Name
+            clone.children[0].addEventListener('click', selectUser)
+
+            userList.appendChild(clone)
+        })
+    }
+
+    $( document ).ready(function(){
+        $.ajax({
+            type: 'POST',  
+            url: '@Url.Action("GetAllContacts")',  
+            dataType: 'json',
+            success: insertContacts,
+            error: errorFunc
+        });
+    });
+
+    //ENCRYPTION BEGINNING
+
+    function _uint8ArrayToBase64(u8) {
+        return btoa(String.fromCharCode.apply(null, u8));
+    }
+
+    function _base64ToUint8Array(str) {
+        return atob(str).split('').map(function (c) { return c.charCodeAt(0); });
+    }
+
+    function _base64ToArrayBuffer(base64) {
+        var binary_string = window.atob(base64);
+        var len = binary_string.length;
+        var bytes = new Uint8Array(len);
+        for (var i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+
+    function _arrayBufferToBase64(buffer) {
+        var binary = '';
+        var bytes = new Uint8Array(buffer);
+        var len = bytes.byteLength;
+        for (var i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
+    }
+
+    function _deleteAllCookies() {
+        var cookies = document.cookie.split(";");
+
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = cookies[i];
+            var eqPos = cookie.indexOf("=");
+            var name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+            document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        }
+    }
+
+
+    //1. Store private key in cookies
+    //2. Post public key to server
+    async function generateKey() {
+        const keyPair = await window.crypto.subtle.generateKey(
+            {
+                name: "ECDH",
+                namedCurve: "P-384"
+            },
+            true,
+            ["deriveBits"]
+        );
+        const privateKeyPromise = await window.crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
+        const publicKeyPromise = await window.crypto.subtle.exportKey('raw', keyPair.publicKey);
+
+        const privateKey = new Uint8Array(privateKeyPromise);
+        const publicKey = new Uint8Array(publicKeyPromise);
+
+        const privateKeyBase64 = _uint8ArrayToBase64(privateKey);
+        const publicKeyBase64 = _uint8ArrayToBase64(publicKey);
+
+        _deleteAllCookies()
+        document.cookie = privateKeyBase64
+
+        $.ajax({ 
+            type: "POST",
+            url: '@Url.Action("UpdatePublicKey")',
+            data: JSON.stringify({PublicKey: publicKeyBase64}),
+            dataType: 'json',
+            contentType: "application/json; charset=utf-8",
+            success: (value) => {alert(value.message);},
+            error: errorFunc
+        });
+
+        console.log(privateKeyBase64)
+        console.log(publicKeyBase64)
+    }
+
+    async function decryptPrivateKey() {
+        const privateKeyBase64 = document.cookie
+        const privateKeyBuffer = _base64ToArrayBuffer(privateKeyBase64)
+        
+        const privateKey = await window.crypto.subtle.importKey('pkcs8', privateKeyBuffer,
+            {
+                name: "ECDH",
+                namedCurve: "P-384"
+            }, true, [
+            "deriveBits"]);
+
+
+        return privateKey;
+    }
+
+    async function decryptPublicKey(publicKeyBase64) {
+        const publicKeyBuffer = _base64ToArrayBuffer(publicKeyBase64)
+
+        const publicKey = await window.crypto.subtle.importKey('raw', publicKeyBuffer,
+            {
+                name: "ECDH",
+                namedCurve: "P-384"
+            }, true, []);
+
+        return publicKey;
+    }
+
+    async function deriveSharedSecret(privateKey, publicKey) {
+        const sharedSecret = await window.crypto.subtle.deriveBits(
+            {
+                name: "ECDH",
+                namedCurve: "P-384",
+                public: publicKey
+            },
+            privateKey,
+            256
+        );
+
+        const buffer = new Uint8Array(sharedSecret);
+
+        const aes = await window.crypto.subtle.importKey("raw", buffer, { "name": "AES-CBC" }, false, ["encrypt", "decrypt"]);
+
+        return aes;
+    }
+
+    async function encryptMessage(message) {
+        let iv = new Uint8Array(16);
+        var enc = new TextEncoder()
+
+        var encryptedMessage = await window.crypto.subtle.encrypt(
+            { "name": "AES-CBC", "iv": iv },
+            sharedSecret,
+            enc.encode(message)
+        )
+        encryptedMessageBase64 = _arrayBufferToBase64(encryptedMessage)
+        return encryptedMessageBase64;
+    }
+
+    async function decryptMessage(encryptedMessageBase64) {
+        let iv = new Uint8Array(16);
+        var deco = new TextDecoder()
+        encryptedMessage = _base64ToArrayBuffer(encryptedMessageBase64)
+
+        var decryptedMessage = await window.crypto.subtle.decrypt(
+            { "name": "AES-CBC", "iv": iv },
+            sharedSecret,
+            encryptedMessage
+        )
+        return deco.decode(decryptedMessage)
+    }
+
+    </script>  
+}  
+
+@section Styles
+{
+    <link href="@Url.Content("~/css/chat.css")" rel="stylesheet" type="text/css" />
+}
+
+
+@* @section Styles
+{
+    <link href="@Url.Content("~/css/chat.css")" rel="stylesheet" type="text/css" />
+} *@
